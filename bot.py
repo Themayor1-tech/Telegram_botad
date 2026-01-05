@@ -4,12 +4,12 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Load the bot token from .env
+# Load environment variables
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN not set in .env file")
+    raise RuntimeError("BOT_TOKEN not set in environment variables")
 
 # --- Command Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -31,7 +31,6 @@ async def moderate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
         return
-    # Check for links in the message
     text = message.text or ""
     if "http://" in text.lower() or "https://" in text.lower():
         try:
@@ -55,12 +54,11 @@ async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Reply to a user's message to ban them.")
 
-# --- Main Bot ---
+# --- Main ---
 def main():
-    # Create the bot application
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Register handlers
+    # Handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("ban", ban_user))
