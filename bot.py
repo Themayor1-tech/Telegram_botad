@@ -247,28 +247,26 @@ async def command_ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ User not found")
 
 # --- Main function ---
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+
+# Example command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Hello! I'm your bot.")
+
+# Example message handler
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(update.message.text)
+
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    # Build the application
+    app = ApplicationBuilder().token("YOUR_BOT_TOKEN").build()
 
-    # Command
+    # Add handlers
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-    # Admin commands
-    app.add_handler(CommandHandler("mute", command_mute))
-    app.add_handler(CommandHandler("unmute", command_unmute))
-    app.add_handler(CommandHandler("kick", command_kick))
-    app.add_handler(CommandHandler("ban", command_ban))
-
-    # Message moderation
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, moderate_message))
-
-    # Welcome new members
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_member))
-
-    # Join requests
-    app.add_handler(ChatJoinRequestHandler(handle_join_request))
-
-    # Run bot
+    # Run the bot
     app.run_polling()
 
 if __name__ == "__main__":
