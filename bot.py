@@ -1,57 +1,73 @@
+# bot.py
 import os
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    filters,
-    ContextTypes,
-)
-from better_profanity import profanity
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Load .env locally (optional, Render uses environment variables)
+# Load the bot token from .env
 load_dotenv()
-
-# Read BOT_TOKEN from environment
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+
 if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN not set in environment variables")
+    raise RuntimeError("BOT_TOKEN not set in .env file")
 
-# ---------- Handlers ----------
-
+# --- Command Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Send a welcome message on /start"""
-    await update.message.reply_text("Hello! I'm your moderation bot.")
+    await update.message.reply_text(
+        "👋 Hello! I am your moderation bot.\n"
+        "I will automatically delete messages with links."
+    )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Send a help message"""
-    await update.message.reply_text("Use me to keep your group safe from spam and profanity!")
+    await update.message.reply_text(
+        "Commands:\n"
+        "/start - Start the bot\n"
+        "/help - Show this help message\n"
+        "/ban - Ban a user (reply to a user's message)"
+    )
 
-async def filter_profanity(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Filter bad words from messages"""
-    text = update.message.text
-    if profanity.contains_profanity(text):
-        await update.message.delete()
-        await update.message.reply_text("⚠️ Please avoid using bad language.")
+# --- Message Moderation ---
+async def moderate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    if not message:
+        return
+    # Check for links in the message
+    text = message.text or ""
+    if "http://" in text.lower() or "https://" in text.lower():
+        try:
+            await message.delete()
+            await message.reply_text(
+                f"{message.from_user.mention_html()}, your message was removed because links are not allowed.",
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            print(f"Failed to delete message: {e}")
 
-# ---------- Main Function ----------
+# --- Admin Commands ---
+async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.reply_to_message:
+        user_to_ban = update.message.reply_to_message.from_user
+        try:
+            await update.effective_chat.ban_member(user_to_ban.id)
+            await update.message.reply_text(f"{user_to_ban.full_name} has been banned.")
+        except Exception as e:
+            await update.message.reply_text(f"Failed to ban user: {e}")
+    else:
+        await update.message.reply_text("Reply to a user's message to ban them.")
 
+# --- Main Bot ---
 def main():
-    # Build the application
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    # Create the bot application
+    app = Application.builder().token(BOT_TOKEN).build()
 
-    # Add command handlers
+    # Register handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("ban", ban_user))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, moderate))
 
-    # Add message handler for profanity filtering
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filter_profanity))
-
-    # Run the bot
+    print("Bot is running...")
     app.run_polling()
-
-# ---------- Entry Point ----------
 
 if __name__ == "__main__":
     main()
